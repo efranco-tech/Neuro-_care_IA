@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NeuroCare AI - Asistencia de Enfermería Neuro-Emocional</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: {
+            teal: { 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488', 900: '#134e4a' },
+            neuro: { card: '#0f172a', accent: '#38bdf8', pulse: '#818cf8' }
+          },
+          animation: { 'emergency-pulse': 'emergency 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite' },
+          keyframes: {
+            emergency: {
+              '0%, 100%': { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.5)' },
+              '50%': { backgroundColor: 'rgba(239, 68, 68, 0.3)', borderColor: 'rgba(239, 68, 68, 0.8)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .wave-bar { animation: wave 1.2s ease-in-out infinite alternate; }
+    @keyframes wave { 0% { height: 10%; } 100% { height: 100%; } }
+  </style>
+</head>
+<body class="h-[100dvh] font-sans antialiased bg-slate-950 text-slate-100 flex flex-col overflow-hidden transition-colors duration-500" id="bodyContainer">
+
+  <header class="flex-none border-b border-slate-800 bg-slate-900/80 backdrop-blur-md z-50 transition-colors duration-500" id="mainHeader">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div id="appIcon" class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-teal-500/20 transition-all shrink-0">
+          <i class="fa-solid font-bold fa-brain text-white text-xl"></i>
+        </div>
+        <div class="truncate">
+          <h1 class="font-bold text-sm sm:text-lg text-white tracking-wide flex items-center gap-2 truncate">
+            NeuroCare AI <span id="triageBadgeHeader" class="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">Estable</span>
+          </h1>
+          <p class="text-[10px] sm:text-xs text-slate-400 truncate">Motor de Triaje Autónomo</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
+        <div id="ttsStatus" class="hidden md:flex items-center gap-2 text-xs bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Voz Activa</span>
+        </div>
+        <button id="resetChatBtn" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition" title="Reiniciar Evaluación">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Modificado para asegurar que ocupe el alto disponible dinámico y se pueda scrollear -->
+  <main class="flex-1 min-h-0 max-w-7xl w-full mx-auto p-2 sm:p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 overflow-y-auto lg:overflow-hidden">
+    
+    <!-- LEFT COLUMN (Chat) -->
+    <section class="lg:col-span-7 flex flex-col bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl transition-all h-[75vh] lg:h-full min-h-[500px]" id="chatSection">
+      
+      <div class="flex-none p-3 sm:p-4 bg-slate-950/60 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-3">
+          <div class="relative">
+            <div id="nurseAvatar" class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800 border-2 border-teal-500 flex items-center justify-center text-teal-400 text-lg sm:text-xl font-bold transition-all">
+              <i class="fa-solid fa-user-nurse"></i>
+            </div>
+            <span id="nurseStatusDot" class="absolute bottom-0 right-0 w-3 h-3 sm:w-3.5 sm:h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full transition-colors"></span>
+          </div>
+          <div>
+            <h2 id="nurseName" class="font-semibold text-white text-sm sm:text-base">Enfermera YAGUI</h2>
+            <p id="nurseRole" class="text-[10px] sm:text-xs text-teal-400 transition-colors line-clamp-1">Especialista en Triaje</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <select id="nurseSelect" class="bg-slate-800 text-xs text-white border border-slate-700 rounded-lg px-2 py-1.5 sm:px-2.5 focus:outline-none focus:border-teal-500 max-w-[140px] sm:max-w-none truncate">
+            <option value="yagui">YAGUI (Cálida)</option>
+            <option value="mateo">Mateo (Sereno)</option>
+            <option value="sofia">Sofía (Suave)</option>
+            <option value="carlos">Carlos (Firme)</option>
+            <option value="molly">Molly (Alegre)</option>
+            <option value="mired">Mired (Comprensiva)</option>
+            <option value="gusfre">Gusfre (Resiliente)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Chat Area Flexible -->
+      <div id="chatContainer" class="flex-1 p-4 overflow-y-auto space-y-4 scroll-smooth"></div>
+
+      <div class="flex-none px-3 py-2 bg-slate-950/40 border-t border-slate-800/80 flex items-center gap-2 overflow-x-auto text-xs scrollbar-none">
+        <span class="text-slate-500 font-medium whitespace-nowrap"><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>Sugerencias:</span>
+        <button class="quick-btn bg-slate-800/80 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700/60 whitespace-nowrap hover:bg-slate-700">Ataque de pánico</button>
+        <button class="quick-btn bg-slate-800/80 text-slate-300 px-3 py-1.5 rounded-full border border-slate-700/60 whitespace-nowrap hover:bg-slate-700">Tristeza y soledad</button>
+        <button class="quick-btn bg-red-900/30 text-red-300 border-red-800/50 px-3 py-1.5 rounded-full font-bold whitespace-nowrap">Me duele el pecho</button>
+      </div>
+
+      <div class="flex-none p-3 sm:p-4 bg-slate-950 border-t border-slate-800">
+        <form id="chatForm" class="flex items-center space-x-2 relative">
+          <!-- Botón de Micrófono -->
+          <button type="button" id="micBtn" class="shrink-0 p-3 sm:p-3.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-teal-400 transition-all rounded-xl border border-slate-700/80 flex items-center justify-center shadow-inner" title="Dictar por voz">
+            <i class="fa-solid fa-microphone text-sm sm:text-base"></i>
+          </button>
+          
+          <input type="text" id="userInput" placeholder="Escribe o dicta tus síntomas aquí..." class="flex-1 w-full bg-slate-900 border border-slate-700/80 text-white placeholder-slate-500 text-sm rounded-xl px-4 py-3 sm:py-3.5 focus:outline-none focus:border-teal-500 transition shadow-inner" autocomplete="off" required>
+          
+          <button type="submit" id="sendBtn" class="shrink-0 bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500 text-white font-medium px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl transition shadow-lg shadow-teal-500/20 flex items-center justify-center gap-2">
+            <span class="hidden sm:inline">Enviar</span>
+            <i class="fa-solid fa-paper-plane text-xs sm:text-sm"></i>
+          </button>
+        </form>
+        <p id="micStatusText" class="text-[10px] text-teal-400 mt-2 ml-14 hidden animate-pulse">Escuchando... Puedes hablar ahora.</p>
+      </div>
+    </section>
+
+    <section class="lg:col-span-5 flex flex-col space-y-4 lg:space-y-6">
+      <!-- Triage Panel -->
+      <div id="triagePanel" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl transition-all">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-semibold text-white text-sm flex items-center gap-2">
+            <i class="fa-solid fa-truck-medical text-teal-400" id="triageIcon"></i>
+            Panel de Triaje Clínico
+          </h3>
+          <span id="detectionBadge" class="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+            En Espera
+          </span>
+        </div>
+        
+        <div id="emergencyActions" class="hidden mt-4 pt-4 border-t border-red-500/30">
+          <p class="text-sm text-red-200 mb-3 font-bold text-center animate-pulse">🚨 SE REQUIERE ATENCIÓN PRIORITARIA 🚨</p>
+          <div class="grid grid-cols-2 gap-2">
+            <a href="tel:911" class="bg-red-600 hover:bg-red-500 text-white text-center py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-red-600/30 flex flex-col items-center justify-center transition">
+              <i class="fa-solid fa-phone text-lg mb-1"></i> Llamar 911
+            </a>
+            <button class="bg-slate-800 border border-red-500/50 hover:bg-slate-700 text-red-400 text-center py-2.5 rounded-lg font-bold text-sm flex flex-col items-center justify-center transition">
+              <i class="fa-solid fa-hospital text-lg mb-1"></i> Urgencias
+            </button>
+          </div>
+        </div>
+
+        <div id="affectiveMatrixContainer" class="block mt-2">
+           <div class="bg-slate-950/80 p-3 rounded-xl border border-slate-800/80 mb-3">
+            <div class="flex justify-between items-center text-xs mb-1">
+              <span class="text-slate-400">Nivel de Estrés / Tensión</span>
+              <span id="stressValue" class="font-bold text-amber-400">--%</span>
+            </div>
+            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+              <div id="stressBar" class="bg-amber-400 h-full w-0 transition-all duration-500"></div>
+            </div>
+          </div>
+          <div class="relative bg-slate-950 rounded-xl p-3 border border-slate-800 flex flex-col items-center">
+            <canvas id="affectiveCanvas" width="280" height="120" class="max-w-full w-full"></canvas>
+            <div class="w-full flex justify-between text-[10px] text-slate-500 mt-1 px-2">
+              <span>Displacer</span>
+              <span>Placer</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex-1 flex flex-col min-h-[200px]">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-white text-sm flex items-center gap-2">
+            <i class="fa-solid fa-notes-medical text-indigo-400"></i>
+            Diagnóstico Neuro-Somático
+          </h3>
+        </div>
+        <div id="somaticTags" class="flex flex-wrap gap-1.5 mb-3">
+          <span class="text-xs text-slate-500 italic">Esperando descripción de síntomas...</span>
+        </div>
+        <div class="bg-slate-950 rounded-xl p-3 sm:p-4 border border-slate-800/80 flex-1">
+            <span class="text-[11px] font-semibold text-indigo-300 uppercase tracking-wider block mb-1">Intervención Sugerida:</span>
+            <p id="clinicalProtocol" class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Sistema en modo escucha. Detalla tus síntomas para activar el algoritmo de Primeros Auxilios Psicológicos (PAP) o derivación médica.
+            </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const apiKey = ""; // Usa variable de entorno o proxy en producción
+    let isProcessing = false;
+    let chatHistory = [];
+
+    // Motor de intercepción de riesgo local (Regex Kill-Switch)
+    const riskKeywords = /\b(suicidi[oa]|matarme|infarto|dolor en el pecho|no puedo respirar|sangrado|sobredosis|morir|urgencia|emergencia|cortarme|acabar con todo)\b/i;
+
+    const nursePersonas = {
+      yagui: {
+        name: "Enfermera YAGUI", role: "Especialista en Triaje Emocional",
+        avatarBg: "bg-teal-500/20 text-teal-400 border-teal-500",
+        systemPrompt: "Eres la Enfermera YAGUI. Tono cálido, clínico y profesional. Brindas ejercicios de grounding."
+      },
+      mateo: {
+        name: "Enfermero Mateo", role: "Manejo de Ansiedad",
+        avatarBg: "bg-blue-500/20 text-blue-400 border-blue-500",
+        systemPrompt: "Eres el Enfermero Mateo. Tono sereno, explicativo sobre el sistema nervioso."
+      },
+      sofia: {
+        name: "Enfermera Sofía", role: "Soporte de Trauma",
+        avatarBg: "bg-purple-500/20 text-purple-400 border-purple-500",
+        systemPrompt: "Eres la Enfermera Sofía. Tono maternal, extremadamente suave y compasivo."
+      },
+      carlos: {
+        name: "Enfermero Carlos", role: "Intervención de Crisis",
+        avatarBg: "bg-amber-500/20 text-amber-400 border-amber-500",
+        systemPrompt: "Eres el Enfermero Carlos. Tono firme, directivo y seguro. Ayudas a aterrizar al paciente."
+      },
+      molly: {
+        name: "Enfermera Molly", role: "Soporte Motivacional",
+        avatarBg: "bg-pink-500/20 text-pink-400 border-pink-500",
+        systemPrompt: "Eres la Enfermera Molly. Tu tono es alegre, dulce, optimista y altamente motivador. Levantas el ánimo y das esperanza de manera empática pero enérgica."
+      },
+      mired: {
+        name: "Enfermera Mired", role: "Especialista en Empatía Activa",
+        avatarBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500",
+        systemPrompt: "Eres la Enfermera Mired. Tu tono es profundamente comprensivo, analítico y muy cercano. Te especializas en escuchar activamente, validar el dolor y reflejar las emociones del paciente para ayudarle a entenderse a sí mismo en momentos de confusión."
+      },
+      gusfre: {
+        name: "Enfermero Gusfre", role: "Especialista en Resiliencia",
+        avatarBg: "bg-violet-500/20 text-violet-400 border-violet-500",
+        systemPrompt: "Eres el Enfermero Gusfre. Tu tono es alentador, pragmático y enfocado en el desarrollo de fortalezas. Ayudas a los pacientes a encontrar su propia resiliencia y propones pequeños pasos claros para recuperar la estabilidad emocional y física."
+      }
+    };
+    let activePersona = nursePersonas.yagui;
+
+    const ui = {
+      chat: document.getElementById('chatContainer'),
+      input: document.getElementById('userInput'),
+      form: document.getElementById('chatForm'),
+      nurseAvatar: document.getElementById('nurseAvatar'),
+      triagePanel: document.getElementById('triagePanel'),
+      emergencyActions: document.getElementById('emergencyActions'),
+      triageBadgeHeader: document.getElementById('triageBadgeHeader'),
+      matrixContainer: document.getElementById('affectiveMatrixContainer'),
+      nurseStatusDot: document.getElementById('nurseStatusDot'),
+      body: document.getElementById('bodyContainer'),
+      header: document.getElementById('mainHeader'),
+      micBtn: document.getElementById('micBtn'),
+      micStatusText: document.getElementById('micStatusText')
+    };
+
+    const canvas = document.getElementById('affectiveCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Funcionalidad Text-to-Speech (Botón de Escucha)
+    let currentUtterance = null;
+    window.playVoice = function(text, btnElement) {
+      if (!('speechSynthesis' in window)) {
+        alert("Tu navegador no soporta síntesis de voz.");
+        return;
+      }
+      
+      // Si ya está hablando, detener la voz actual
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        document.querySelectorAll('.voice-play-btn i').forEach(icon => {
+          icon.className = 'fa-solid fa-volume-high';
+        });
+      }
+
+      const icon = btnElement.querySelector('i');
+      icon.className = 'fa-solid fa-stop text-red-400';
+
+      currentUtterance = new SpeechSynthesisUtterance(text);
+      currentUtterance.lang = 'es-ES'; // Idioma español
+      
+      // Ajustar el tono (pitch) según el género del enfermero activo
+      if (activePersona.name.includes("Mateo") || activePersona.name.includes("Carlos") || activePersona.name.includes("Gusfre")) {
+          currentUtterance.pitch = 0.7; // Tono más grave
+      } else {
+          currentUtterance.pitch = 1.2; // Tono más agudo
+      }
+
+      currentUtterance.onend = () => {
+        icon.className = 'fa-solid fa-volume-high';
+      };
+      currentUtterance.onerror = () => {
+        icon.className = 'fa-solid fa-volume-high';
+      };
+
+      window.speechSynthesis.speak(currentUtterance);
+    };
+
+    function drawAffectiveMatrix(valence = 0, arousal = 0) {
+      const w = canvas.width, h = canvas.height;
+      const cX = w / 2, cY = h / 2;
+      ctx.clearRect(0, 0, w, h);
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(10, cY); ctx.lineTo(w - 10, cY); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cX, 10); ctx.lineTo(cX, h - 10); ctx.stroke();
+      ctx.fillStyle = '#64748b'; ctx.font = '10px sans-serif';
+      ctx.fillText('Alto Arousal', cX + 5, 12); ctx.fillText('Bajo Arousal', cX + 5, h - 5);
+      const tX = cX + (valence * (cX - 25)), tY = cY - (arousal * (cY - 15));
+      ctx.beginPath(); ctx.arc(tX, tY, 10, 0, Math.PI * 2); ctx.fillStyle = 'rgba(45, 212, 191, 0.2)'; ctx.fill();
+      ctx.beginPath(); ctx.arc(tX, tY, 4, 0, Math.PI * 2); ctx.fillStyle = '#2dd4bf'; ctx.fill();
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isRecording = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'es-ES';
+
+      recognition.onstart = () => {
+        isRecording = true;
+        ui.micBtn.classList.add('text-red-500', 'animate-pulse', 'border-red-500/50', 'bg-red-500/10');
+        ui.micBtn.classList.remove('text-slate-400', 'bg-slate-800');
+        ui.micStatusText.classList.remove('hidden');
+        ui.input.placeholder = "Escuchando tus síntomas...";
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript) {
+           // Añade espacio si ya hay texto
+           ui.input.value = ui.input.value ? ui.input.value + " " + finalTranscript : finalTranscript;
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Error de reconocimiento de voz:", event.error);
+        stopRecording();
+      };
+
+      recognition.onend = () => {
+        stopRecording();
+      };
+    } else {
+      ui.micBtn.style.display = 'none';
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      ui.micBtn.classList.remove('text-red-500', 'animate-pulse', 'border-red-500/50', 'bg-red-500/10');
+      ui.micBtn.classList.add('text-slate-400', 'bg-slate-800');
+      ui.micStatusText.classList.add('hidden');
+      ui.input.placeholder = "Escribe o dicta tus síntomas aquí...";
+      if (recognition) recognition.stop();
+    }
+
+    ui.micBtn.addEventListener('click', () => {
+      if (!recognition) return;
+      if (isRecording) {
+        stopRecording();
+      } else {
+        recognition.start();
+      }
+    });
+
+    function triggerEmergencyState() {
+      ui.body.classList.add('bg-red-950');
+      ui.body.classList.remove('bg-slate-950');
+      ui.header.classList.add('bg-red-950/90', 'border-red-900');
+      ui.header.classList.remove('bg-slate-900/80', 'border-slate-800');
+      ui.triagePanel.classList.add('animate-emergency-pulse', 'border-red-500');
+      ui.emergencyActions.classList.remove('hidden');
+      ui.matrixContainer.classList.add('hidden');
+      
+      if(ui.triageBadgeHeader) {
+          ui.triageBadgeHeader.textContent = "CRÍTICO";
+          ui.triageBadgeHeader.className = "hidden sm:inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-red-600 text-white shadow-[0_0_10px_rgba(220,38,38,0.8)] animate-pulse";
+      }
+      
+      ui.nurseAvatar.className = "w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-red-500 bg-red-900/50 flex items-center justify-center text-red-400 text-xl font-bold";
+      ui.nurseAvatar.innerHTML = `<i class="fa-solid fa-truck-medical"></i>`;
+      ui.nurseStatusDot.className = "absolute bottom-0 right-0 w-3 h-3 bg-red-500 border-2 border-red-900 rounded-full animate-pulse";
+      
+      document.getElementById('triageIcon').className = "fa-solid fa-truck-medical text-red-500";
+      document.getElementById('detectionBadge').textContent = "DERIVACIÓN MÉDICA ACTIVA";
+      document.getElementById('detectionBadge').className = "text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-red-900/50 text-red-300 border border-red-500";
+    }
+
+    function appendMessage(sender, text, isNurse = false, isEmergency = false) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `flex gap-2 sm:gap-3 ${sender === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`;
+
+      if (isNurse) {
+        const bgClass = isEmergency ? 'bg-red-900/60 border-red-500/80 text-red-50' : 'bg-slate-800/90 border-slate-700/80 text-slate-100';
+        const avatarClass = isEmergency ? 'bg-red-900/50 text-red-400 border-red-500' : activePersona.avatarBg;
+        const icon = isEmergency ? 'fa-truck-medical' : 'fa-user-nurse';
+        const msgId = 'msg_' + Date.now() + Math.floor(Math.random() * 1000);
+
+        msgDiv.innerHTML = `
+          <div class="w-8 h-8 rounded-full ${avatarClass} flex-shrink-0 flex items-center justify-center text-xs font-bold mt-1">
+            <i class="fa-solid ${icon}"></i>
+          </div>
+          <div class="max-w-[85%] ${bgClass} border rounded-2xl rounded-tl-none p-3 sm:p-4 text-sm leading-relaxed shadow-lg flex flex-col gap-2">
+            <p id="${msgId}_text">${text.replace(/\n/g, '<br>')}</p>
+            <div class="flex justify-end mt-1">
+              <button onclick="playVoice(document.getElementById('${msgId}_text').innerText, this)" class="voice-play-btn text-[10px] sm:text-xs text-slate-400 hover:text-teal-400 transition-colors flex items-center gap-1.5 bg-slate-900/50 hover:bg-slate-900 px-2.5 py-1.5 rounded-lg border border-slate-700/50" title="Escuchar respuesta">
+                  <i class="fa-solid fa-volume-high"></i> Escuchar
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        msgDiv.innerHTML = `
+          <div class="max-w-[80%] bg-teal-600 text-white rounded-2xl rounded-tr-none p-3 sm:p-3.5 text-sm leading-relaxed shadow-md">
+            <p>${text}</p>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-xs text-slate-300 font-bold mt-1">
+            <i class="fa-solid fa-user"></i>
+          </div>
+        `;
+      }
+      ui.chat.appendChild(msgDiv);
+      ui.chat.scrollTop = ui.chat.scrollHeight;
+    }
+
+    async function processUserNeuroInput(userText) {
+      if (isProcessing) return;
+      isProcessing = true;
+      if (isRecording) stopRecording();
+
+      appendMessage('user', userText, false);
+      ui.input.value = '';
+
+      // KILL-SWITCH LOCAL PARA EMERGENCIA
+      if (riskKeywords.test(userText)) {
+        triggerEmergencyState();
+        appendMessage('nurse', "🚨 ALERTA DE TRIAJE PRIORITARIO 🚨\n\nBasado en tus síntomas, requieres evaluación médica o de emergencia de forma inmediata. Mis capacidades virtuales no son suficientes para garantizar tu seguridad en este momento.\n\nPor favor, contacta a los servicios de emergencia (Ej: 911) o acude al centro de salud más cercano. No estás solo, pero necesitas ayuda presencial urgente.", true, true);
+        document.getElementById('clinicalProtocol').innerHTML = "<span class='text-red-400 font-bold text-sm'>DERIVACIÓN INMEDIATA A URGENCIAS. BLOQUEO DE PROTOCOLO PSICOLÓGICO. ACTÚE AHORA.</span>";
+        isProcessing = false;
+        return; 
+      }
+
+      const typingId = 'typing_' + Date.now();
+      ui.chat.insertAdjacentHTML('beforeend', `<div id="${typingId}" class="flex gap-2 items-center text-[11px] sm:text-xs text-teal-400 bg-slate-800/60 w-max px-3 py-2 rounded-xl border border-slate-700 mt-2"><i class="fa-solid fa-brain animate-spin"></i> <span>Analizando biometría...</span></div>`);
+      ui.chat.scrollTop = ui.chat.scrollHeight;
+
+      const systemInstruction = `
+        ${activePersona.systemPrompt}
+        Eres Total Care AI. Analiza la entrada del paciente.
+        
+        IMPORTANTE: Si detectas riesgo de daño, infarto o emergencia médica grave, clasifica "nivel_triage" como "CRITICO".
+        Si es necesidad de apoyo emocional o ansiedad, usa "CONTENCION".
+        Si es una duda normal, usa "ESTABLE".
+
+        Responde SÓLO JSON:
+        {
+          "nivel_triage": "ESTABLE | CONTENCION | CRITICO",
+          "nurse_reply": "Tu respuesta empática y profesional aquí.",
+          "detected_emotion": "Emoción/Condición principal",
+          "affective_metrics": { "valence": 0.0 a 1.0, "arousal": 0.0 a 1.0, "stress_level": 0-100 },
+          "somatic_sensations": ["Síntoma 1", "Síntoma 2"],
+          "clinical_protocol": "Intervención PAP sugerida."
+        }
+      `;
+
+      chatHistory.push({ role: 'user', parts: [{ text: userText }] });
+
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: chatHistory,
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        document.getElementById(typingId).remove();
+        
+        if (!response.ok) throw new Error("API Failure");
+        
+        const result = await response.json();
+        let rawText = result.candidates[0].content.parts[0].text;
+        rawText = rawText.replace(/```json/gi, '').replace(/```/gi, '').trim();
+        const data = JSON.parse(rawText);
+        chatHistory.push({ role: 'model', parts: [{ text: rawText }] });
+
+        if (data.nivel_triage === "CRITICO") {
+           triggerEmergencyState();
+           appendMessage('nurse', `🚨 ATENCIÓN PRIORITARIA REQUERIDA 🚨\n\n${data.nurse_reply}\n\nUsa los botones rojos del panel para buscar ayuda médica real.`, true, true);
+           document.getElementById('clinicalProtocol').innerHTML = `<span class='text-red-400 font-bold'>${data.clinical_protocol || 'DERIVACIÓN A URGENCIAS'}</span>`;
+        } else {
+           appendMessage('nurse', data.nurse_reply, true, false);
+           updateDashboard(data);
+        }
+
+      } catch (err) {
+        console.error("AI Fallback:", err);
+        if (document.getElementById(typingId)) document.getElementById(typingId).remove();
+        appendMessage('nurse', "Entiendo lo que me dices. Como no pude procesar completamente tu diagnóstico por un fallo de red, te pido que si tus dolores son físicos y fuertes (pecho, cabeza, falta de aire) busques un médico presencial de inmediato. Si te sientes estable, intenta respirar profundo.", true);
+      } finally {
+        isProcessing = false;
+      }
+    }
+
+    function updateDashboard(data) {
+      if(data.nivel_triage === "CRITICO") return;
+
+      document.getElementById('triageIcon').className = "fa-solid fa-brain text-teal-400";
+      
+      const badge = document.getElementById('detectionBadge');
+      badge.textContent = data.detected_emotion || 'Estable';
+      badge.className = data.nivel_triage === "CONTENCION" 
+        ? "text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40"
+        : "text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-teal-500/20 text-teal-300 border border-teal-500/40";
+
+      if (data.affective_metrics) {
+        document.getElementById('stressValue').textContent = `${data.affective_metrics.stress_level || 10}%`;
+        document.getElementById('stressBar').style.width = `${data.affective_metrics.stress_level || 10}%`;
+        drawAffectiveMatrix(data.affective_metrics.valence || 0, data.affective_metrics.arousal || 0);
+      }
+
+      if (data.somatic_sensations?.length) {
+        document.getElementById('somaticTags').innerHTML = data.somatic_sensations.map(s => 
+          `<span class="bg-indigo-950/80 text-indigo-300 border border-indigo-500/30 px-2 py-1 rounded-md text-xs font-medium"><i class="fa-solid fa-heart-pulse mr-1 text-[10px] text-indigo-400"></i>${s}</span>`
+        ).join('');
+      }
+
+      document.getElementById('clinicalProtocol').innerHTML = `<span class="text-teal-100">${data.clinical_protocol || "Monitoreo general activo."}</span>`;
+    }
+
+    ui.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if(ui.input.value.trim()) processUserNeuroInput(ui.input.value.trim());
+    });
+
+    document.querySelectorAll('.quick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        ui.input.value = btn.textContent;
+        processUserNeuroInput(btn.textContent);
+      });
+    });
+
+    document.getElementById('nurseSelect').addEventListener('change', (e) => {
+      const selectedId = e.target.value;
+      activePersona = nursePersonas[selectedId];
+      
+      document.getElementById('nurseName').textContent = activePersona.name;
+      document.getElementById('nurseRole').textContent = activePersona.role;
+      ui.nurseAvatar.className = `w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 flex items-center justify-center text-lg sm:text-xl font-bold transition-all ${activePersona.avatarBg}`;
+      ui.nurseAvatar.innerHTML = `<i class="fa-solid fa-user-nurse"></i>`;
+      
+      // La enfermera Molly (o la seleccionada) saluda automáticamente
+      let saludo = `¡Hola! Soy ${activePersona.name}. `;
+      if(selectedId === 'molly') {
+          saludo += "¡Qué gusto saludarte! Estoy aquí para acompañarte, apoyarte y llenarte de buena energía. ¿Cómo te sientes en este momento? ¡Juntos podemos lograr sentirnos mejor!";
+      } else {
+          saludo += "He tomado el relevo de tu evaluación. ¿Podrías indicarme cómo te sientes?";
+      }
+      appendMessage('nurse', saludo, true);
+    });
+
+    document.getElementById('resetChatBtn').addEventListener('click', () => location.reload());
+    
+    // Resize canvas fix for responsive container
+    window.addEventListener('resize', () => {
+       const container = canvas.parentElement;
+       if(container.clientWidth > 0) {
+           canvas.width = container.clientWidth - 24; // padding offset
+           drawAffectiveMatrix(0, 0); // redraw current state ideally, defaults to 0,0 here
+       }
+    });
+
+    window.onload = () => {
+      const container = canvas.parentElement;
+      canvas.width = container.clientWidth - 24;
+      drawAffectiveMatrix(0, 0);
+      appendMessage('nurse', "¡Hola! Bienvenido al módulo NeuroCare AI. Estoy aquí para ofrecerte contención psicológica o derivación médica. ¿Cómo te sientes física o emocionalmente en este momento? Puedes escribir o usar el micrófono.", true);
+    };
+  </script>
+</body>
+</html>
